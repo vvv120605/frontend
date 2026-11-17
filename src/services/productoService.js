@@ -1,0 +1,252 @@
+
+import { productosIniciales } from '../data/productos.js';
+
+const CLAVE_STORAGE = 'productos';
+
+function leerProductos() {
+  try {
+    const guardados = JSON.parse(localStorage.getItem(CLAVE_STORAGE));
+    if (Array.isArray(guardados)) return guardados;
+  } catch {
+    /* sin storage o JSON dañado: se usan los productos iniciales */
+  }
+
+  return productosIniciales.map((p) => ({ ...p }));
+}
+
+function guardarProductos(lista) {
+  try {
+    localStorage.setItem(CLAVE_STORAGE, JSON.stringify(lista));
+  } catch {
+    /* sin storage disponible: los cambios quedan solo en esta sesión */
+  }
+}
+
+function normalizarCodigo(codigo) {
+  return String(codigo ?? '').trim().toUpperCase();
+}
+
+function aNumero(valor) {
+  return valor === '' || valor == null ? NaN : Number(valor);
+}
+
+function armarProducto(codigo, datos) {
+  const nombre = String(datos.nombre ?? '').trim();
+
+  if (!nombre) {
+    throw new Error('El nombre es obligatorio');
+  }
+
+  const categoria = String(datos.categoria ?? '').trim();
+
+  if (!categoria) {
+    throw new Error('La categoría es obligatoria');
+  }
+
+  const precio = aNumero(datos.precio);
+
+  if (!Number.isFinite(precio) || precio <= 0) {
+    throw new Error('El precio debe ser un número mayor a 0');
+  }
+
+  const stock = aNumero(datos.stock);
+
+  if (!Number.isInteger(stock) || stock < 0) {
+    throw new Error('El stock debe ser un número entero mayor o igual a 0');
+  }
+
+  let stockCritico = null;
+
+  if (datos.stockCritico !== '' && datos.stockCritico != null) {
+    stockCritico = Number(datos.stockCritico);
+
+    if (!Number.isInteger(stockCritico) || stockCritico < 0) {
+      throw new Error(
+        'El stock crítico debe ser un número entero mayor o igual a 0'
+      );
+    }
+  }
+
+  return {
+    codigo,
+    nombre,
+    descripcion: String(datos.descripcion ?? '').trim(),
+    precio,
+    stock,
+    stockCritico,
+    categoria,
+    imagen: datos.imagen ?? ''
+  };
+}
+
+// Consultar todos los productos
+export function consultarProductos() {
+  return leerProductos();
+}
+
+/**
+ * Devuelve los productos cuyo stock actual está
+ * en el nivel crítico o por debajo.
+ *
+ * Si el producto no tiene un stock crítico definido,
+ * se utiliza un límite predeterminado de 5 unidades.
+ */
+export function consultarProductosStockBajo() {
+  const STOCK_CRITICO_PREDETERMINADO = 5;
+
+  return consultarProductos().filter((producto) => {
+    const limite =
+      producto.stockCritico ?? STOCK_CRITICO_PREDETERMINADO;
+
+    return Number(producto.stock) <= Number(limite);
+  });
+}
+
+
+// Obtener un producto por su código
+export function obtenerProducto(codigo) {
+  const buscado = normalizarCodigo(codigo);
+
+  return leerProductos().find((p) => p.codigo === buscado);
+}
+
+// Buscar productos por código, nombre o categoría
+export function buscarProductos(texto) {
+  const termino = String(texto ?? '').trim().toLowerCase();
+  const lista = leerProductos();
+
+  if (!termino) return lista;
+
+  return lista.filter(
+    (p) =>
+      p.codigo.toLowerCase().includes(termino) ||
+      p.nombre.toLowerCase().includes(termino) ||
+      p.categoria.toLowerCase().includes(termino)
+  );
+}
+
+// Agregar un nuevo producto
+export function agregarProducto(datos) {
+  const codigo = normalizarCodigo(datos.codigo);
+
+  if (!codigo) {
+    throw new Error('El código es obligatorio');
+  }
+
+  const lista = leerProductos();
+
+  if (lista.some((p) => p.codigo === codigo)) {
+    throw new Error(`Ya existe un producto con el código ${codigo}`);
+  }
+
+  const nuevo = armarProducto(codigo, datos);
+
+  guardarProductos([...lista, nuevo]);
+
+  return nuevo;
+}
+
+// Editar un producto existente
+export function editarProducto(codigo, cambios) {
+  const buscado = normalizarCodigo(codigo);
+  const lista = leerProductos();
+  const indice = lista.findIndex((p) => p.codigo === buscado);
+
+  if (indice === -1) {
+    throw new Error(`No existe el producto ${buscado}`);
+  }
+
+  // El código no se modifica al editar.
+  const editado = armarProducto(buscado, {
+    ...lista[indice],
+    ...cambios
+  });
+
+  const nuevaLista = [...lista];
+  nuevaLista[indice] = editado;
+
+  guardarProductos(nuevaLista);
+
+  return editado;
+}
+
+export function reemplazarCategoriaEnProductos(
+  nombreAnterior,
+  nombreNuevo
+) {
+  const lista = leerProductos();
+
+  const actualizados = lista.map((producto) =>
+    producto.categoria === nombreAnterior
+      ? { ...producto, categoria: nombreNuevo }
+      : producto
+  );
+
+  guardarProductos(actualizados);
+
+  return actualizados;
+}
+
+// Eliminar un producto
+export function eliminarProducto(codigo) {
+  const buscado = normalizarCodigo(codigo);
+  const lista = leerProductos();
+
+  if (!lista.some((p) => p.codigo === buscado)) {
+    throw new Error(`No existe el producto ${buscado}`);
+  }
+
+  guardarProductos(
+    lista.filter((p) => p.codigo !== buscado)
+  );
+}
+
+// Descontar el stock de los productos de una compra
+export function descontarStockProductos(items) {
+  const lista = leerProductos();
+
+  const actualizado = lista.map((producto) => ({
+    ...producto
+  }));
+
+  const cantidades = new Map();
+
+  // Agrupar las cantidades por código
+  for (const item of items) {
+    const codigo = normalizarCodigo(item.codigo);
+
+    if (!Number.isInteger(item.cantidad) || item.cantidad < 1) {
+      throw new Error('La cantidad debe ser un entero mayor a cero');
+    }
+
+    cantidades.set(
+      codigo,
+      (cantidades.get(codigo) || 0) + item.cantidad
+    );
+  }
+
+  // Validar y descontar las unidades
+  for (const [codigo, cantidad] of cantidades) {
+    const producto = actualizado.find(
+      (p) => p.codigo === codigo
+    );
+
+    if (!producto) {
+      throw new Error(`El producto ${codigo} no existe`);
+    }
+
+    if (cantidad > producto.stock) {
+      throw new Error(`Stock insuficiente para ${producto.nombre}`);
+    }
+
+    producto.stock -= cantidad;
+  }
+
+  // Guardar todos los cambios en una sola escritura
+  localStorage.setItem(
+    CLAVE_STORAGE,
+    JSON.stringify(actualizado)
+  );
+
+  return actualizado;
+}
