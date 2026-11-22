@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { contarCarrito } from '../services/carritoService.js';
+import { cerrarSesion } from '../services/sesionService.js';
+import useSesion from '../hooks/useSesion.js';
 
 export default function Navbar() {
+  const navigate = useNavigate();
+  const sesion = useSesion();
   const [menuActivo, setMenuActivo] = useState(false);
   const [cantidadCarrito, setCantidadCarrito] = useState(contarCarrito);
 
@@ -31,6 +35,14 @@ export default function Navbar() {
   const cerrarMenu = () => {
     setMenuActivo(false);
   };
+
+  const salir = () => {
+    cerrarSesion();
+    cerrarMenu();
+    navigate('/');
+  }
+
+  const puedeEntrarAlPanel = sesion?.rol === 'ADMIN' || sesion?.rol === 'VENDEDOR';
 
   return (
     <header className="navbar">
@@ -87,13 +99,33 @@ export default function Navbar() {
       </nav>
 
       <div className="acciones">
-        <Link to="/login" onClick={cerrarMenu}>
-          Iniciar sesión
-        </Link>
-        {' | '}
-        <Link to="/registro" onClick={cerrarMenu}>
-          Registrarse
-        </Link>
+        {sesion ? (
+          <>
+            <span>Hola, {sesion.nombreCompleto}</span>
+            {' | '}
+            {puedeEntrarAlPanel && (
+              <>
+                <Link to="/admin" onClick={cerrarMenu}>
+                  Panel
+                </Link>
+                {' | '}
+              </>
+            )}
+            <button type="button" className="btn-link-navbar" onClick={salir}>
+              Cerrar sesión
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login" onClick={cerrarMenu}>
+              Iniciar sesión
+            </Link>
+            {' | '}
+            <Link to="/registro" onClick={cerrarMenu}>
+              Registrarse
+            </Link>
+          </>
+        )}
         {' | '}
         <Link to="/carrito" onClick={cerrarMenu}>
           🛒 Cart (

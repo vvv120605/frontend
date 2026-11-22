@@ -4,6 +4,7 @@ import {
   consultarProductos,
   eliminarProducto
 } from '../services/productoService.js';
+import {tieneRol} from '../services/sesionService.js'
 
 export default function AdminProductos() {
   const { codigo } = useParams();
@@ -14,6 +15,44 @@ export default function AdminProductos() {
   );
   const [error, setError] = useState('');
 
+  // El vendedor solo puede ver; El administrador puede crear editar y eliminar
+  const esAdmin = tieneRol('ADMIN');
+    {esAdmin && (
+      <Link to="/admin/productos/nuevo" className="btn-nuevo">
+        + Nuevo Producto
+      </Link>
+    )}
+
+    {esAdmin && (
+      <p className="admin-descripcion">
+        <Link to="admin/productos/stock-bajo">
+        Ver Productos con pocas unidades
+        </Link>
+        {'|'}
+        <Link to="admin/categorias">
+        Administrar Categorias
+        </Link>
+      </p>
+    )}
+
+      {esAdmin && (
+                        <>
+                          <Link
+                            className="btn-accion"
+                            to={'/admin/productos/${encodeURIComponent(producto.codigo)}/editar'}
+                          >
+                            Editar
+                          </Link>
+
+                          <button
+                            type="button"
+                            className="btn-accion btn-eliminar"
+                            onClick={() => manejarEliminar(producto)}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
   const manejarEliminar = (producto) => {
     const confirmar = window.confirm(
       `¿Estás seguro de eliminar ${producto.nombre}?`

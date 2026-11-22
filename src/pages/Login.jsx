@@ -17,7 +17,15 @@ export default function Login() {
 
     try {
       const sesion = await iniciarSesion(correo, contrasena);
-      navigate(sesion.rol === 'CLIENTE' ? '/' : '/admin');
+      const inicioPorRol = {
+        ADMIN: '/admin',
+        VENDEDOR: '/admin/productos',
+        CLIENTE: '/'
+      }
+      //Si venia de una pagina protegida, vuelva a ella; si no, a la de su rol
+      navigate(location.state?.desde ?? inicioPorRol[sesion.rol] ?? '/', {replace: true
+
+      });
     } catch (err) {
       setError(err.message);
     }

@@ -1,14 +1,28 @@
-
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { cerrarSesion } from '../services/sesionService.js';
+import { cerrarSesion, nombreRol } from '../services/sesionService.js';
+import useSesion from '../hooks/useSesion.js';
+
+// Opciones del menú y qué roles pueden verlas
+const OPCIONES_MENU = [
+  { ruta: '/admin', texto: 'Dashboard', roles: ['ADMIN'], end: true },
+  { ruta: '/admin/productos', texto: 'Productos', roles: ['ADMIN', 'VENDEDOR'] },
+  { ruta: '/admin/usuarios', texto: 'Usuarios', roles: ['ADMIN'] },
+  { ruta: '/admin/pedidos', texto: 'Pedidos', roles: ['ADMIN', 'VENDEDOR'] },
+  { ruta: '/admin/reportes', texto: 'Reportes', roles: ['ADMIN'] }
+];
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const sesion = useSesion();
 
   const salir = () => {
     cerrarSesion();
     navigate('/login');
   };
+
+  const opcionesVisibles = OPCIONES_MENU.filter((opcion) =>
+    opcion.roles.includes(sesion?.rol)
+  );
 
   return (
     <div className="admin-layout">
@@ -17,53 +31,27 @@ export default function AdminLayout() {
           Sonido Vivo
         </div>
 
+        {sesion && (
+          <p className="admin-usuario">
+            {sesion.nombreCompleto}
+            <br />
+            <small>Rol: {nombreRol(sesion.rol)}</small>
+          </p>
+        )}
+
         <nav>
           <ul>
-            <li>
-              <NavLink
-                to="/admin"
-                end
-                className={({ isActive }) => isActive ? 'activo' : ''}
-              >
-                Dashboard
-              </NavLink>
-            </li>
-
-            <li>
-              <NavLink
-                to="/admin/productos"
-                className={({ isActive }) => isActive ? 'activo' : ''}
-              >
-                Productos
-              </NavLink>
-            </li>
-
-            <li>
-              <NavLink
-                to="/admin/usuarios"
-                className={({ isActive }) => isActive ? 'activo' : ''}
-              >
-                Usuarios
-              </NavLink>
-            </li>
-
-            <li>
-              <NavLink
-                to="/admin/pedidos"
-                className={({ isActive }) => isActive ? 'activo' : ''}
-              >
-                Pedidos
-              </NavLink>
-            </li>
-
-            <li>
-              <NavLink
-                to="/admin/reportes"
-                className={({ isActive }) => isActive ? 'activo' : ''}
-              >
-                Reportes
-              </NavLink>
-            </li>
+            {opcionesVisibles.map((opcion) => (
+              <li key={opcion.ruta}>
+                <NavLink
+                  to={opcion.ruta}
+                  end={opcion.end}
+                  className={({ isActive }) => isActive ? 'activo' : ''}
+                >
+                  {opcion.texto}
+                </NavLink>
+              </li>
+            ))}
           </ul>
         </nav>
 
