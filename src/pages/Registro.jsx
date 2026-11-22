@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { agregarUsuario } from '../services/usuarioService.js';
+import { apiFetch } from '../services/api.js';
 
 export default function Registro() {
   const navigate = useNavigate();
@@ -15,6 +15,7 @@ export default function Registro() {
   });
 
   const [error, setError] = useState('');
+  const [enviando, setEnviando] = useState(false);
 
   const manejarCambio = (e) => {
     setDatos({
@@ -23,7 +24,7 @@ export default function Registro() {
     });
   };
 
-  const manejarRegistro = (e) => {
+  const manejarRegistro = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -37,15 +38,18 @@ export default function Registro() {
       return;
     }
 
+    setEnviando(true);
+
     try {
-      agregarUsuario({
-        run: datos.run.trim(),
-        nombreCompleto: datos.nombreCompleto.trim(),
-        correo: datos.correo.trim().toLowerCase(),
-        direccion: datos.direccion.trim(),
-        contrasena: datos.contrasena,
-        rol: 'Cliente',
-        activo: true
+      await apiFetch('/usuarios', {
+        method: 'POST',
+        body: {
+          nombre: datos.nombreCompleto.trim(),
+          email: datos.correo.trim().toLowerCase(),
+          password: datos.contrasena,
+          run: datos.run.trim(),
+          direccion: datos.direccion.trim()
+        }
       });
 
       navigate('/login', {
@@ -53,6 +57,8 @@ export default function Registro() {
       });
     } catch (err) {
       setError(err.message);
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -70,8 +76,10 @@ export default function Registro() {
               <input
                 id="run"
                 name="run"
+                placeholder="12.345.678-9"
                 value={datos.run}
                 onChange={manejarCambio}
+                maxLength={12}
                 required
               />
             </div>
@@ -83,6 +91,7 @@ export default function Registro() {
                 name="nombreCompleto"
                 value={datos.nombreCompleto}
                 onChange={manejarCambio}
+                maxLength={100}
                 required
               />
             </div>
@@ -95,6 +104,7 @@ export default function Registro() {
                 type="email"
                 value={datos.correo}
                 onChange={manejarCambio}
+                maxLength={150}
                 required
               />
             </div>
@@ -106,6 +116,7 @@ export default function Registro() {
                 name="direccion"
                 value={datos.direccion}
                 onChange={manejarCambio}
+                maxLength={255}
                 required
               />
             </div>
@@ -138,8 +149,8 @@ export default function Registro() {
 
             {error && <p role="alert" className="error-msg">{error}</p>}
 
-            <button type="submit" className="btn-submit">
-              CREAR CUENTA
+            <button type="submit" className="btn-submit" disabled={enviando}>
+              {enviando ? 'CREANDO CUENTA...' : 'CREAR CUENTA'}
             </button>
 
             <p>
