@@ -4,7 +4,7 @@ import {
   consultarProductos,
   eliminarProducto
 } from '../services/productoService.js';
-import {tieneRol} from '../services/sesionService.js'
+import { tieneRol } from '../services/sesionService.js';
 
 export default function AdminProductos() {
   const { codigo } = useParams();
@@ -15,47 +15,12 @@ export default function AdminProductos() {
   );
   const [error, setError] = useState('');
 
-  // El vendedor solo puede ver; El administrador puede crear editar y eliminar
+  // El vendedor solo puede ver; crear, editar y eliminar es del administrador
   const esAdmin = tieneRol('ADMIN');
-    {esAdmin && (
-      <Link to="/admin/productos/nuevo" className="btn-nuevo">
-        + Nuevo Producto
-      </Link>
-    )}
 
-    {esAdmin && (
-      <p className="admin-descripcion">
-        <Link to="admin/productos/stock-bajo">
-        Ver Productos con pocas unidades
-        </Link>
-        {'|'}
-        <Link to="admin/categorias">
-        Administrar Categorias
-        </Link>
-      </p>
-    )}
-
-      {esAdmin && (
-                        <>
-                          <Link
-                            className="btn-accion"
-                            to={'/admin/productos/${encodeURIComponent(producto.codigo)}/editar'}
-                          >
-                            Editar
-                          </Link>
-
-                          <button
-                            type="button"
-                            className="btn-accion btn-eliminar"
-                            onClick={() => manejarEliminar(producto)}
-                          >
-                            Eliminar
-                          </button>
-                        </>
-                      )}
   const manejarEliminar = (producto) => {
     const confirmar = window.confirm(
-      `¿Estás seguro de eliminar ${producto.nombre}?`
+      '¿Estás seguro de eliminar ' + producto.nombre + '?'
     );
 
     if (!confirmar) return;
@@ -79,20 +44,24 @@ export default function AdminProductos() {
       <div className="admin-header-tabla">
         <h1>Administración de Productos</h1>
 
-        <Link to="/admin/productos/nuevo" className="btn-nuevo">
-          + Nuevo Producto
-        </Link>
+        {esAdmin && (
+          <Link to="/admin/productos/nuevo" className="btn-nuevo">
+            + Nuevo Producto
+          </Link>
+        )}
       </div>
 
       <p className="admin-descripcion">
         Consulta y administra los productos del catálogo de Sonido Vivo.
       </p>
 
-      <p className="admin-descripcion">
-        <Link to="/admin/productos/stock-bajo">Ver productos con pocas unidades</Link>
-        {' | '}
-        <Link to="/admin/categorias">Administrar categorías</Link>
-      </p>
+      {esAdmin && (
+        <p className="admin-descripcion">
+          <Link to="/admin/productos/stock-bajo">Ver productos con pocas unidades</Link>
+          {' | '}
+          <Link to="/admin/categorias">Administrar categorías</Link>
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="error-msg">
@@ -137,20 +106,24 @@ export default function AdminProductos() {
                         Ver
                       </button>
 
-                      <Link
-                        className="btn-accion"
-                        to={`/admin/productos/${encodeURIComponent(producto.codigo)}/editar`}
-                      >
-                        Editar
-                      </Link>
+                      {esAdmin && (
+                        <>
+                          <Link
+                            className="btn-accion"
+                            to={'/admin/productos/' + encodeURIComponent(producto.codigo) + '/editar'}
+                          >
+                            Editar
+                          </Link>
 
-                      <button
-                        type="button"
-                        className="btn-accion btn-eliminar"
-                        onClick={() => manejarEliminar(producto)}
-                      >
-                        Eliminar
-                      </button>
+                          <button
+                            type="button"
+                            className="btn-accion btn-eliminar"
+                            onClick={() => manejarEliminar(producto)}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
