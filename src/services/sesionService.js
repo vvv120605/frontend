@@ -1,43 +1,40 @@
+import { apiFetch, leerSesionGuardada, guardarSesion, borrarSesion } from './api.js';
 
-import { obtenerUsuarios } from './usuarioService.js';
-
-const CLAVE_SESION = 'sonidoVivo_sesion';
+const NOMBRES_ROL = { ADMIN: 'Administrador', VENDEDOR: 'Vendedor', CLIENTE: 'Cliente' };
 
 export function obtenerSesion() {
-  try {
-    const datos = sessionStorage.getItem(CLAVE_SESION);
-    return datos ? JSON.parse(datos) : null;
-  } catch {
-    return null;
-  }
+  return leerSesionGuardada();
 }
 
-export function iniciarSesion(correo, contrasena) {
-  const usuario = obtenerUsuarios().find(
-    u =>
-      u.correo.toLowerCase() === correo.trim().toLowerCase() &&
-      u.contrasena === contrasena &&
-      u.activo === true
-  );
+export async function iniciarSesion(correo, contrasena) {
+  const email = correo.trim().toLowerCase();
 
-  if (!usuario) {
-    throw new Error('Correo, contraseña o estado de cuenta incorrecto');
-  }
+  const datos = await apiFetch('/auth/login', {
+    method: 'POST',
+    body: { email, password: contrasena }
+  });
 
   const sesion = {
-    run: usuario.run,
-    nombreCompleto: usuario.nombreCompleto,
-    correo: usuario.correo,
-    rol: usuario.rol
+    token: datos.token,
+    refreshToken: datos.refreshToken,
+    rol: datos.rol,                 // ADMIN, VENDEDOR o CLIENTE
+    nombreCompleto: datos.nombre,
+    correo: email
   };
 
-  sessionStorage.setItem(CLAVE_SESION, JSON.stringify(sesion));
-  window.dispatchEvent(new Event('sesionActualizada'));
-
+  guardarSesion(sesion);
   return sesion;
 }
 
 export function cerrarSesion() {
-  sessionStorage.removeItem(CLAVE_SESION);
-  window.dispatchEvent(new Event('sesionActualizada'));
+  borrarSesion();
+}
+
+export function nombreRol(rol) {
+  return NOMBRES_ROL[rol] ?? rol;
+}
+
+export function tieneRol(...roles) {
+  const sesion = obtenerSesion();
+  return !!sesion && roles.includes(sesion.rol);
 }

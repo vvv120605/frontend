@@ -11,13 +11,13 @@ export default function Login() {
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState('');
 
-  const manejarLogin = (e) => {
+  const manejarLogin = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
-      iniciarSesion(correo, contrasena);
-      navigate('/');
+      const sesion = await iniciarSesion(correo, contrasena);
+      navigate(sesion.rol === 'CLIENTE' ? '/' : '/admin');
     } catch (err) {
       setError(err.message);
     }
