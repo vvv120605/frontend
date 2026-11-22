@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 
 import Layout from './components/Layout.jsx';
 import AdminLayout from './components/AdminLayout.jsx';
+import RutaProtegida from './components/RutaProtegida.jsx';
 
 import PaginaPendiente from './pages/PaginaPendiente.jsx';
 import NoEncontrada from './pages/NoEncontrada.jsx';
@@ -79,52 +80,49 @@ function App() {
         <Route path="compra/error" element={<CompraError />} />
       </Route>
 
-      {/* 2. Rutas de administración */}
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route
-          index
-          element={<AdminDashboard />} 
-        />
+      {/* 2. Rutas de administración: solo ADMIN y VENDEDOR */}
+            <Route
+              path="/admin"
+              element={
+                <RutaProtegida roles={['ADMIN', 'VENDEDOR']}>
+                  <AdminLayout />
+                </RutaProtegida>
+              }
+            >
+              {/* Vendedor y administrador: ver productos y órdenes */}
+              <Route path="productos" element={<AdminProductos />} />
+              <Route path="pedidos" element={<AdminPedidos />} />
+              <Route path="pedidos/:id" element={<AdminDetallePedido />} />
 
-        {/* Productos */}
-        <Route path="productos" element={<AdminProductos />} />
-        <Route path="productos/nuevo" element={<NuevoProducto />} />
-        <Route path="productos/stock-bajo" element={<AdminStockBajo />} />
-        <Route path="productos/:codigo" element={<EditarProducto />} />
-        <Route path="productos/:codigo/editar" element={<EditarProducto />} />
+              {/* Solo administrador */}
+              <Route element={<RutaProtegida roles={['ADMIN']} />}>
+                <Route index element={<AdminDashboard />} />
 
-        {/* Categorías */}
-        <Route path="categorias" element={<AdminCategorias />} />
-        <Route
-          path="categorias/nueva"
-          element={<PaginaPendiente titulo="Nueva categoría" />}
-        />
-        <Route
-          path="categorias/:id/editar"
-          element={<PaginaPendiente titulo="Editar categoría" />}
-        />
+                <Route path="productos/nuevo" element={<NuevoProducto />} />
+                <Route path="productos/stock-bajo" element={<AdminStockBajo />} />
+                <Route path="productos/:codigo" element={<EditarProducto />} />
+                <Route path="productos/:codigo/editar" element={<EditarProducto />} />
 
-        {/* Usuarios */}
-        <Route path="usuarios" element={<AdminUsuarios />} />
-        <Route path="usuarios/nuevo" element={<NuevoUsuario />} />
-        <Route path="usuarios/:id" element={<EditarUsuario />} />
-        <Route path="usuarios/:id/editar" element={<EditarUsuario />} />
-        <Route
-          path="usuarios/:id/compras"
-          element={<AdminUsuarios />}
-        />
+                <Route path="categorias" element={<AdminCategorias />} />
+                <Route
+                  path="categorias/nueva"
+                  element={<PaginaPendiente titulo="Nueva categoría" />}
+                />
+                <Route
+                  path="categorias/:id/editar"
+                  element={<PaginaPendiente titulo="Editar categoría" />}
+                />
 
-        {/* Pedidos y reportes - Issue #32 */}
-        <Route path="pedidos" element={<AdminPedidos />} />
-        <Route path="pedidos/:id" element={<AdminDetallePedido />} />
-        <Route path="reportes" element={<AdminReportes />} />
+                <Route path="usuarios" element={<AdminUsuarios />} />
+                <Route path="usuarios/nuevo" element={<NuevoUsuario />} />
+                <Route path="usuarios/:id" element={<EditarUsuario />} />
+                <Route path="usuarios/:id/editar" element={<EditarUsuario />} />
+                <Route path="usuarios/:id/compras" element={<AdminUsuarios />} />
 
-        {/* Perfil */}
-        <Route
-          path="perfil"
-          element={<PaginaPendiente titulo="Perfil" />}
-        />
-      </Route>
+                <Route path="reportes" element={<AdminReportes />} />
+                <Route path="perfil" element={<PaginaPendiente titulo="Perfil" />} />
+              </Route>
+            </Route>
 
       {/* 3. Página 404 */}
       <Route path="*" element={<NoEncontrada />} />
