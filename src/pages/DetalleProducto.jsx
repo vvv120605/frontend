@@ -1,10 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import {
-  obtenerProducto,
-  consultarProductos
-} from '../services/productoService.js';
+import { listarProductos } from '../services/catalogoService';
 import {
   obtenerCarrito,
   agregarCantidadAlCarrito
@@ -12,7 +9,8 @@ import {
 
 export default function DetalleProducto() {
   const { codigo } = useParams();
-  const producto = obtenerProducto(codigo);
+  const [catalogo, setCatalogo] = useState([]);
+  const [cargando, setCargando] = useState(true);
 
   const [cantidad, setCantidad] = useState(1);
   const [aviso, setAviso] = useState('');
@@ -33,6 +31,26 @@ export default function DetalleProducto() {
     };
   }, []);
 
+  useEffect(() => {
+      listarProductos()
+        .then(setCatalogo)
+        .catch(() => setCatalogo([]))
+        .finally(() => setCargando(false));
+    }, []);
+
+    const buscado = String(codigo ?? '').toUpperCase();
+    const producto = catalogo.find((item) => item.codigo === buscado);
+
+    if (cargando) {
+      return (
+        <main className="contenedor-detalle">
+          <div className="detalle-info">
+            <p>Cargando producto...</p>
+          </div>
+        </main>
+      );
+    }  
+
   if (!producto) {
     return (
       <main className="contenedor-detalle">
@@ -48,7 +66,8 @@ export default function DetalleProducto() {
     );
   }
 
-  const relacionados = consultarProductos().filter(
+
+  const relacionados = catalogo.filter(
     (item) =>
       item.categoria === producto.categoria &&
       item.codigo !== producto.codigo
@@ -66,7 +85,7 @@ export default function DetalleProducto() {
 
   const manejarAgregar = () => {
     try {
-      agregarCantidadAlCarrito(producto.codigo, cantidad);
+      agregarCantidadAlCarrito(producto, cantidad);
       setCantidad(1);
       setAviso('Producto agregado al carrito correctamente');
     } catch (error) {

@@ -1,11 +1,21 @@
-import { useState, useMemo } from 'react';
+import { useEffect,useState, useMemo } from 'react';
 import ProductoCard from '../components/ProductoCard.jsx';
-import { consultarProductos } from '../services/productoService.js';
+import { listarProductos} from '../services/catalogoService.js'
 import { agregarAlCarrito } from '../services/carritoService.js';
 
 export default function Productos() {
-  const [productos] = useState(consultarProductos);
+  const [productos, setProductos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState('');
   const [aviso, setAviso] = useState(null);
+
+  // Carga el catálogo desde el backend al abrir la página
+  useEffect(() => {
+    listarProductos()
+      .then(setProductos)
+      .catch((err) => setErrorCarga(err.message))
+      .finally(() => setCargando(false));
+  }, []);
 
   // --- NUEVOS ESTADOS PARA LOS FILTROS ---
   const [busqueda, setBusqueda] = useState('');
@@ -14,7 +24,8 @@ export default function Productos() {
 
   const manejarAgregar = (codigo) => {
     try {
-      agregarAlCarrito(codigo);
+      const producto = productos.find((p) => p.codigo === codigo);
+      agregarAlCarrito(producto);
       setAviso({ tipo: 'ok', texto: 'Producto agregado al carrito correctamente' });
     } catch (err) {
       setAviso({ tipo: 'error', texto: err.message });
@@ -124,7 +135,13 @@ export default function Productos() {
       )}
 
       {/* --- LISTADO DE PRODUCTOS O AVISO SIN RESULTADOS --- */}
-      {productosFiltrados.length === 0 ? (
+      {cargando ? (
+        <p style={{ textAlign: 'center', color: '#fff' }}>Cargando productos...</p>
+      ) : errorCarga ? (
+        <p role="alert" style={{ textAlign: 'center', color: '#fff' }}>
+          No se pudo cargar el catálogo: {errorCarga}
+        </p>
+      ) : productosFiltrados.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#fff' }}>
           <p style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>
             No se encontraron productos que coincidan con tu búsqueda.

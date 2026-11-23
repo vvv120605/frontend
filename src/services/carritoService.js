@@ -1,6 +1,3 @@
-
-import { obtenerProducto } from './productoService.js';
-
 const CLAVE_STORAGE = 'carrito';
 
 function leerCarrito() {
@@ -18,6 +15,24 @@ function guardarCarrito(lista) {
   window.dispatchEvent(new Event('carritoActualizado'));
 }
 
+function validarProducto(producto) {
+  if (!producto || !producto.codigo) {
+    throw new Error('El producto no existe');
+  }
+}
+
+function crearItem(producto, cantidad) {
+  return {
+    id: producto.id,
+    codigo: producto.codigo,
+    nombre: producto.nombre,
+    precio: producto.precio,
+    imagen: producto.imagen,
+    stock: producto.stock,
+    cantidad
+  };
+}
+
 export function obtenerCarrito() {
   return leerCarrito();
 }
@@ -29,92 +44,46 @@ export function contarCarrito() {
   );
 }
 
-export function agregarAlCarrito(codigo) {
-  const producto = obtenerProducto(codigo);
+// Recibe el producto completo (como viene del catálogo) y agrega 1 unidad
+export function agregarAlCarrito(producto) {
+  return agregarCantidadAlCarrito(producto, 1);
+}
 
-  if (!producto) {
-    throw new Error('El producto no existe');
+// Recibe el producto completo y agrega la cantidad indicada
+export function agregarCantidadAlCarrito(producto, cantidad) {
+  validarProducto(producto);
+
+  if (!Number.isInteger(cantidad) || cantidad < 1) {
+    throw new Error('La cantidad debe ser un entero mayor a cero');
   }
 
   if (producto.stock <= 0) {
     throw new Error('El producto no tiene stock');
   }
 
-  const carrito = leerCarrito();
-  const item = carrito.find((i) => i.codigo === producto.codigo);
-
-  if (item) {
-    if (item.cantidad >= producto.stock) {
-      throw new Error('No quedan más unidades disponibles de este producto');
-    }
-
-    item.cantidad += 1;
-  } else {
-    carrito.push({
-      codigo: producto.codigo,
-      nombre: producto.nombre,
-      precio: producto.precio,
-      imagen: producto.imagen,
-      cantidad: 1
-    });
-  }
-
-  guardarCarrito(carrito);
-  return carrito;
-}
-
-export function agregarCantidadAlCarrito(codigo, cantidad) {
-  const producto = obtenerProducto(codigo);
-
-  if (!producto) {
-    throw new Error('El producto no existe');
-  }
-
-  if (!Number.isInteger(cantidad) || cantidad < 1) {
-    throw new Error('La cantidad debe ser un entero mayor a cero');
-  }
-
-  const carrito = leerCarrito();
-  const existente = carrito.find(
-    (item) => item.codigo === producto.codigo
-  );
-
+  const carrito = leerCarrito().map((item) => ({ ...item }));
+  const existente = carrito.find((item) => item.codigo === producto.codigo);
   const cantidadActual = existente?.cantidad || 0;
 
   if (cantidadActual + cantidad > producto.stock) {
     throw new Error('No hay suficientes unidades disponibles');
   }
 
-  const actualizado = carrito.map((item) => ({ ...item }));
-  const itemActual = actualizado.find(
-    (item) => item.codigo === producto.codigo
-  );
-
-  if (itemActual) {
-    itemActual.cantidad += cantidad;
+  if (existente) {
+    existente.cantidad += cantidad;
+    existente.stock = producto.stock;
+    existente.precio = producto.precio;
   } else {
-    actualizado.push({
-      codigo: producto.codigo,
-      nombre: producto.nombre,
-      precio: producto.precio,
-      imagen: producto.imagen,
-      cantidad
-    });
+    carrito.push(crearItem(producto, cantidad));
   }
 
-  guardarCarrito(actualizado);
-  return actualizado;
+  guardarCarrito(carrito);
+  return carrito;
 }
 
 export function cambiarCantidad(codigo, cantidad) {
   if (!Number.isInteger(cantidad) || cantidad < 1) {
     throw new Error('La cantidad debe ser un entero mayor a cero');
-  }
-
-  const producto = obtenerProducto(codigo);
-
-  if (!producto) {
-    throw new Error('El producto no existe');
   }
 
   const carrito = leerCarrito();
@@ -124,7 +93,7 @@ export function cambiarCantidad(codigo, cantidad) {
     throw new Error('El producto no está en el carrito');
   }
 
-  if (cantidad > producto.stock) {
+  if (item.stock != null && cantidad > item.stock) {
     throw new Error('No hay suficientes unidades disponibles');
   }
 
