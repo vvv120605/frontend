@@ -1,33 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FormularioProducto from '../components/FormularioProducto.jsx';
 import {
-  obtenerProducto,
-  editarProducto
-} from '../services/productoService.js';
+  buscarProductoPorCodigo,
+  actualizarProducto
+} from '../services/catalogoService.js';
 
 export default function EditarProducto() {
   const { codigo } = useParams();
   const navigate = useNavigate();
+
+  const [producto, setProducto] = useState(null);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
-  const producto = obtenerProducto(codigo);
+  // Busca el producto en el backend por su código (la URL usa el código)
+  useEffect(() => {
+    buscarProductoPorCodigo(codigo)
+      .then(setProducto)
+      .catch((err) => setError(err.message))
+      .finally(() => setCargando(false));
+  }, [codigo]);
 
-  const guardarCambios = (datos) => {
+  // PUT /api/v1/productos/{id}
+  const guardarCambios = async (datos) => {
     setError('');
 
     try {
-      editarProducto(codigo, datos);
+      await actualizarProducto(producto.id, datos);
       navigate('/admin/productos');
     } catch (err) {
       setError(err.message);
     }
   };
 
+  if (cargando) {
+    return <p>Cargando producto...</p>;
+  }
+
   if (!producto) {
     return (
       <>
         <h1>Producto no encontrado</h1>
+        {error && <p role="alert" className="error-msg">{error}</p>}
         <button
           type="button"
           className="btn-nuevo"

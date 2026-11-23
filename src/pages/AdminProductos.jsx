@@ -1,36 +1,49 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  consultarProductos,
+  listarProductos,
   eliminarProducto
-} from '../services/productoService.js';
+} from '../services/catalogoService.js';
 import { tieneRol } from '../services/sesionService.js';
 
 export default function AdminProductos() {
   const { codigo } = useParams();
 
-  const [productos, setProductos] = useState(consultarProductos);
+  const [productos, setProductos] = useState([]);
   const [seleccionado, setSeleccionado] = useState(
     codigo ? codigo.toUpperCase() : null
   );
   const [error, setError] = useState('');
+  const [mensaje, setMensaje] = useState('');
 
   // El vendedor solo puede ver; crear, editar y eliminar es del administrador
   const esAdmin = tieneRol('ADMIN');
 
-  const manejarEliminar = (producto) => {
+  // GET /api/v1/productos
+  useEffect(() => {
+    listarProductos()
+      .then(setProductos)
+      .catch((err) => setError(err.message));
+  }, []);
+
+  // DELETE /api/v1/productos/{id}
+  const manejarEliminar = async (producto) => {
     const confirmar = window.confirm(
       '¿Estás seguro de eliminar ' + producto.nombre + '?'
     );
 
     if (!confirmar) return;
 
+    setError('');
+    setMensaje('');
+
     try {
-      eliminarProducto(producto.codigo);
+      await eliminarProducto(producto.id);
       setSeleccionado(null);
-      setError('');
-      setProductos(consultarProductos());
+      setProductos(await listarProductos());
+      setMensaje('Producto eliminado correctamente.');
     } catch (err) {
+      // Ej: "No se puede eliminar un producto que tiene ventas registradas" (409)
       setError(err.message);
     }
   };
@@ -68,6 +81,8 @@ export default function AdminProductos() {
           {error}
         </p>
       )}
+      
+      {mensaje && <p role="status">{mensaje}</p>}
 
       {productos.length === 0 ? (
         <div className="admin-panel">

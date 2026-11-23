@@ -1,41 +1,56 @@
-
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  agregarCategoria,
-  consultarCategorias,
-  editarCategoria,
+  listarCategorias,
+  crearCategoria,
+  actualizarCategoria,
   eliminarCategoria
-} from '../services/categoriaService.js';
+} from '../services/catalogoService.js';
 
 export default function AdminCategorias() {
-  const [categorias, setCategorias] = useState(
-    consultarCategorias
-  );
+  const [categorias, setCategorias] = useState([]);
   const [nombre, setNombre] = useState('');
   const [editando, setEditando] = useState(null);
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
+
+  // GET /api/v1/categorias
+  useEffect(() => {
+    listarCategorias()
+      .then(setCategorias)
+      .catch((err) => setError(err.message));
+  }, []);
+
+  const recargar = async () => {
+    setCategorias(await listarCategorias());
+  };
 
   const limpiarFormulario = () => {
     setNombre('');
     setEditando(null);
   };
 
-  const manejarGuardar = (evento) => {
+  // POST o PUT /api/v1/categorias
+  const manejarGuardar = async (evento) => {
     evento.preventDefault();
 
     setError('');
     setMensaje('');
 
+    const nombreLimpio = nombre.trim();
+    if (!nombreLimpio) {
+      setError('El nombre de la categoría es obligatorio');
+      return;
+    }
+
     try {
       if (editando) {
-        editarCategoria(editando.id, nombre);
+        await actualizarCategoria(editando.id, nombreLimpio);
       } else {
-        agregarCategoria(nombre);
+        await crearCategoria(nombreLimpio);
       }
 
-      setCategorias(consultarCategorias());
+      await recargar();
 
       setMensaje(
         editando
@@ -45,16 +60,14 @@ export default function AdminCategorias() {
 
       limpiarFormulario();
     } catch (err) {
+      // Ej: "Ya existe una categoría con ese nombre" (409)
       setError(err.message);
     }
   };
 
-  const manejarEliminar = (categoria) => {
-    if (
-      !window.confirm(
-        `¿Eliminar la categoría ${categoria.nombre}?`
-      )
-    ) {
+  // DELETE /api/v1/categorias/{id}
+  const manejarEliminar = async (categoria) => {
+    if (!window.confirm('¿Eliminar la categoría ' + categoria.nombre + '?')) {
       return;
     }
 
@@ -62,14 +75,15 @@ export default function AdminCategorias() {
     setMensaje('');
 
     try {
-      eliminarCategoria(categoria.id);
-      setCategorias(consultarCategorias());
+      await eliminarCategoria(categoria.id);
+      await recargar();
       setMensaje('Categoría eliminada correctamente.');
 
       if (editando?.id === categoria.id) {
         limpiarFormulario();
       }
     } catch (err) {
+      // Ej: "No se puede eliminar una categoría que tiene productos" (409)
       setError(err.message);
     }
   };
@@ -86,10 +100,7 @@ export default function AdminCategorias() {
       <div className="admin-header-tabla">
         <h1>Administración de categorías</h1>
 
-        <Link
-          className="btn-nuevo"
-          to="/admin/productos"
-        >
+        <Link className="btn-nuevo" to="/admin/productos">
           Volver a productos
         </Link>
       </div>
@@ -104,37 +115,24 @@ export default function AdminCategorias() {
         </p>
       )}
 
-      {mensaje && (
-        <p role="status">{mensaje}</p>
-      )}
+      {mensaje && <p role="status">{mensaje}</p>}
 
-      <form
-        className="admin-form"
-        onSubmit={manejarGuardar}
-      >
-        <h2>
-          {editando ? 'Editar categoría' : 'Nueva categoría'}
-        </h2>
+      <form className="admin-form" onSubmit={manejarGuardar}>
+        <h2>{editando ? 'Editar categoría' : 'Nueva categoría'}</h2>
 
-        <label htmlFor="nombre-categoria">
-          Nombre *
-        </label>
+        <label htmlFor="nombre-categoria">Nombre *</label>
 
         <input
           id="nombre-categoria"
           value={nombre}
-          onChange={(evento) =>
-            setNombre(evento.target.value)
-          }
-          maxLength={80}
+          onChange={(evento) => setNombre(evento.target.value)}
+          maxLength={100}
           required
         />
 
         <div className="admin-botones">
           <button type="submit">
-            {editando
-              ? 'Guardar cambios'
-              : 'Crear categoría'}
+            {editando ? 'Guardar cambios' : 'Crear categoría'}
           </button>
 
           {editando && (
@@ -175,9 +173,7 @@ export default function AdminCategorias() {
                       <button
                         type="button"
                         className="btn-accion"
-                        onClick={() =>
-                          iniciarEdicion(categoria)
-                        }
+                        onClick={() => iniciarEdicion(categoria)}
                       >
                         Editar
                       </button>
@@ -185,9 +181,7 @@ export default function AdminCategorias() {
                       <button
                         type="button"
                         className="btn-accion btn-eliminar"
-                        onClick={() =>
-                          manejarEliminar(categoria)
-                        }
+                        onClick={() => manejarEliminar(categoria)}
                       >
                         Eliminar
                       </button>
