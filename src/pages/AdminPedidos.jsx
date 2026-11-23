@@ -1,46 +1,55 @@
-
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { obtenerPedidos } from '../services/pedidoService.js';
+import { listarBoletas } from '../services/boletaService.js';
+
+const formatoPrecio = (valor) =>
+  Number(valor || 0).toLocaleString('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0
+  });
+
+const formatoFecha = (fecha) => {
+  const fechaValida = new Date(fecha);
+  return Number.isNaN(fechaValida.getTime())
+    ? 'Fecha inválida'
+    : fechaValida.toLocaleString('es-CL');
+};
 
 export default function AdminPedidos() {
-  const [pedidos, setPedidos] = useState(obtenerPedidos);
+  const [pedidos, setPedidos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState('todos');
 
-  const formatoPrecio = (valor) =>
-    Number(valor || 0).toLocaleString('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      maximumFractionDigits: 0
-    });
+  // Cada vez que cambia "recargas", se vuelve a pedir el listado
+  const [recargas, setRecargas] = useState(0);
 
-  const formatoFecha = (fecha) => {
-    if (!fecha) return 'Sin fecha';
+  // GET /api/v1/boletas (ADMIN y VENDEDOR)
+  useEffect(() => {
+    listarBoletas()
+      .then((lista) => {
+        setPedidos([...lista].sort((a, b) => b.id - a.id));
+        setError('');
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setCargando(false));
+  }, [recargas]);
 
-    const fechaValida = new Date(fecha);
-
-    if (Number.isNaN(fechaValida.getTime())) {
-      return 'Fecha inválida';
-    }
-
-    return fechaValida.toLocaleString('es-CL');
+  const actualizar = () => {
+    setCargando(true);
+    setRecargas((n) => n + 1);
   };
 
   const pedidosFiltrados = pedidos.filter((pedido) => {
     const termino = busqueda.trim().toLowerCase();
 
     const coincideBusqueda =
-      String(pedido.id).toLowerCase().includes(termino) ||
-      String(pedido.comprador?.nombre || '')
-        .toLowerCase()
-        .includes(termino) ||
-      String(pedido.comprador?.correo || '')
-        .toLowerCase()
-        .includes(termino);
+      String(pedido.id).includes(termino) ||
+      String(pedido.usuarioNombre || '').toLowerCase().includes(termino);
 
-    const coincideEstado =
-      estado === 'todos' || pedido.estado === estado;
+    const coincideEstado = estado === 'todos' || pedido.estado === estado;
 
     return coincideBusqueda && coincideEstado;
   });
@@ -50,53 +59,51 @@ export default function AdminPedidos() {
       <div className="admin-header-tabla">
         <h1>Administración de pedidos</h1>
 
-        <button
-          type="button"
-          className="btn-nuevo"
-          onClick={() => setPedidos(obtenerPedidos())}
-        >
+        <button type="button" className="btn-nuevo" onClick={actualizar}>
           Actualizar listado
         </button>
       </div>
 
       <p className="admin-descripcion">
-        Consulta los pedidos registrados y revisa sus resúmenes de compra.
+        Consulta las boletas registradas y revisa el detalle de cada compra.
       </p>
 
       <div className="admin-panel">
         <div className="admin-filtros-pedidos">
           <div>
-            <label htmlFor="buscar-pedido">
-              Buscar pedido
-            </label>
-
+            <label htmlFor="buscar-pedido">Buscar pedido</label>
             <input
               id="buscar-pedido"
               type="search"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Número, comprador o correo"
+              placeholder="N.º de boleta o comprador"
             />
           </div>
 
           <div>
-            <label htmlFor="filtrar-estado">
-              Estado
-            </label>
-
+            <label htmlFor="filtrar-estado">Estado</label>
             <select
               id="filtrar-estado"
               value={estado}
               onChange={(e) => setEstado(e.target.value)}
             >
               <option value="todos">Todos</option>
-              <option value="confirmado">Confirmado</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="PAGADA">Pagada</option>
+              <option value="ANULADA">Anulada</option>
             </select>
           </div>
         </div>
       </div>
 
-      {pedidosFiltrados.length === 0 ? (
+      {error && <p role="alert" className="error-msg">{error}</p>}
+
+      {cargando ? (
+        <div className="admin-panel">
+          <p>Cargando pedidos...</p>
+        </div>
+      ) : pedidosFiltrados.length === 0 ? (
         <div className="admin-panel">
           <p>
             {pedidos.length === 0
@@ -109,7 +116,7 @@ export default function AdminPedidos() {
           <table className="admin-tabla">
             <thead>
               <tr>
-                <th>N.º pedido</th>
+                <th>N.º boleta</th>
                 <th>Fecha</th>
                 <th>Comprador</th>
                 <th>Productos</th>
@@ -124,26 +131,14 @@ export default function AdminPedidos() {
                 <tr key={pedido.id}>
                   <td>{pedido.id}</td>
                   <td>{formatoFecha(pedido.fecha)}</td>
+                  <td>{pedido.usuarioNombre}</td>
                   <td>
-                    {pedido.comprador?.nombre || 'Sin nombre'}
-                    <br />
-                    <small>
-                      {pedido.comprador?.correo || 'Sin correo'}
-                    </small>
-                  </td>
-                  <td>
-                    {(pedido.productos || []).reduce(
-                      (total, item) => total + Number(item.cantidad || 0),
-                      0
-                    )}
+                    {pedido.detalles.reduce((total, d) => total + d.cantidad, 0)}
                   </td>
                   <td>{formatoPrecio(pedido.total)}</td>
-                  <td>{pedido.estado || 'Sin estado'}</td>
+                  <td>{pedido.estado}</td>
                   <td>
-                    <Link
-                      className="btn-accion"
-                      to={`/admin/pedidos/${encodeURIComponent(pedido.id)}`}
-                    >
+                    <Link className="btn-accion" to={'/admin/pedidos/' + pedido.id}>
                       Ver detalle
                     </Link>
                   </td>

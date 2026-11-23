@@ -25,3 +25,22 @@ export async function crearBoleta(carrito) {
 export async function listarMisBoletas() {
   return apiFetch('/boletas/mias');
 }
+
+// GET /api/v1/boletas: todas las boletas
+export async function listarBoletas() {
+  return apiFetch('/boletas');
+}
+
+// GET /api/v1/boletas/{id}: detalle de una boleta
+export async function obtenerBoleta(id) {
+  return apiFetch('/boletas/' + encodeURIComponent(id));
+}
+
+// PATCH /api/v1/boletas/{id}/estado?estado=PAGADA (solo ADMIN)
+// Si el estado es ANULADA, el backend devuelve el stock de cada producto.
+export async function cambiarEstadoBoleta(id, estado) {
+  return apiFetch(
+    '/boletas/' + encodeURIComponent(id) + '/estado?estado=' + encodeURIComponent(estado),
+    { method: 'PATCH' }
+  );
+}
