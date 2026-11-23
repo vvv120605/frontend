@@ -40,7 +40,7 @@ export default function Navbar() {
     cerrarSesion();
     cerrarMenu();
     navigate('/');
-  }
+  };
 
   const puedeEntrarAlPanel = sesion?.rol === 'ADMIN' || sesion?.rol === 'VENDEDOR';
 
@@ -102,6 +102,10 @@ export default function Navbar() {
         {sesion ? (
           <>
             <span>Hola, {sesion.nombreCompleto}</span>
+            {' | '}
+            <Link to="/mis-compras" onClick={cerrarMenu}>
+              Mis compras
+            </Link>
             {' | '}
             {puedeEntrarAlPanel && (
               <>
