@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { consultarCategorias } from '../services/categoriaService.js';
+import { useEffect, useState } from 'react';
+import { listarCategorias } from '../services/catalogoService.js';
 
 export default function FormularioProducto({
   productoInicial = {},
@@ -8,7 +8,8 @@ export default function FormularioProducto({
   esEdicion = false,
   error = ''
 }) {
-  const [categorias] = useState(consultarCategorias);
+  // Las categorías vienen del backend (GET /api/v1/categorias)
+  const [categorias, setCategorias] = useState([]);
 
   const [datos, setDatos] = useState({
     codigo: productoInicial.codigo ?? '',
@@ -17,22 +18,18 @@ export default function FormularioProducto({
     precio: productoInicial.precio ?? '',
     stock: productoInicial.stock ?? '',
     stockCritico: productoInicial.stockCritico ?? '',
-    categoria: productoInicial.categoria ?? '',
+    categoriaId: productoInicial.categoriaId ?? '',
     imagen: productoInicial.imagen ?? ''
   });
 
   const [errorLocal, setErrorLocal] = useState('');
+  const [guardando, setGuardando] = useState(false);
 
-  const nombresCategorias = categorias.map((c) => c.nombre);
-
-  // si el producto tiene una categoría que ya no existe, se mantiene como opción
-  const categoriaAntigua =
-    productoInicial.categoria &&
-    !nombresCategorias.includes(productoInicial.categoria)
-      ? [productoInicial.categoria]
-      : [];
-
-  const opcionesCategoria = [...nombresCategorias, ...categoriaAntigua];
+  useEffect(() => {
+    listarCategorias()
+      .then(setCategorias)
+      .catch(() => setErrorLocal('No se pudieron cargar las categorías'));
+  }, []);
 
   const manejarCambio = (e) => {
     const { name, value } = e.target;
@@ -40,22 +37,22 @@ export default function FormularioProducto({
     setErrorLocal('');
   };
 
-  const manejarEnvio = (e) => {
+  const manejarEnvio = async (e) => {
     e.preventDefault();
     setErrorLocal('');
 
     if (
       !String(datos.codigo).trim() ||
       !String(datos.nombre).trim() ||
-      !datos.categoria
+      !datos.categoriaId
     ) {
       setErrorLocal('Código, nombre y categoría son obligatorios');
       return;
     }
 
     const precio = Number(datos.precio);
-    if (datos.precio === '' || !Number.isFinite(precio) || precio <= 0) {
-      setErrorLocal('El precio debe ser un número mayor a 0');
+    if (datos.precio === '' || !Number.isInteger(precio) || precio <= 0) {
+      setErrorLocal('El precio debe ser un número entero mayor a 0');
       return;
     }
 
@@ -65,16 +62,28 @@ export default function FormularioProducto({
       return;
     }
 
-    onGuardar({
-      codigo: String(datos.codigo).trim(),
-      nombre: String(datos.nombre).trim(),
-      descripcion: String(datos.descripcion).trim(),
-      precio,
-      stock,
-      stockCritico: datos.stockCritico === '' ? null : Number(datos.stockCritico),
-      categoria: datos.categoria,
-      imagen: String(datos.imagen).trim()
-    });
+    // El backend exige stock crítico; si se deja vacío se usa 0
+    const stockCritico = datos.stockCritico === '' ? 0 : Number(datos.stockCritico);
+    if (!Number.isInteger(stockCritico) || stockCritico < 0) {
+      setErrorLocal('El stock crítico debe ser un número entero mayor o igual a 0');
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      await onGuardar({
+        codigo: String(datos.codigo).trim().toUpperCase(),
+        nombre: String(datos.nombre).trim(),
+        descripcion: String(datos.descripcion).trim(),
+        precio,
+        stock,
+        stockCritico,
+        categoriaId: Number(datos.categoriaId),
+        imagen: String(datos.imagen).trim()
+      });
+    } finally {
+      setGuardando(false);
+    }
   };
 
   return (
@@ -87,7 +96,7 @@ export default function FormularioProducto({
         value={datos.codigo}
         onChange={manejarCambio}
         readOnly={esEdicion}
-        maxLength={20}
+        maxLength={50}
       />
 
       <label htmlFor="nombre">Nombre *</label>
@@ -129,7 +138,7 @@ export default function FormularioProducto({
         onChange={manejarCambio}
       />
 
-      <label htmlFor="stockCritico">Stock crítico (opcional)</label>
+      <label htmlFor="stockCritico">Stock crítico (si se deja vacío, 0)</label>
       <input
         id="stockCritico"
         name="stockCritico"
@@ -139,17 +148,17 @@ export default function FormularioProducto({
         onChange={manejarCambio}
       />
 
-      <label htmlFor="categoria">Categoría *</label>
+      <label htmlFor="categoriaId">Categoría *</label>
       <select
-        id="categoria"
-        name="categoria"
-        value={datos.categoria}
+        id="categoriaId"
+        name="categoriaId"
+        value={datos.categoriaId}
         onChange={manejarCambio}
       >
         <option value="">Selecciona una categoría</option>
-        {opcionesCategoria.map((nombre) => (
-          <option key={nombre} value={nombre}>
-            {nombre}
+        {categorias.map((categoria) => (
+          <option key={categoria.id} value={categoria.id}>
+            {categoria.nombre}
           </option>
         ))}
       </select>
@@ -160,6 +169,7 @@ export default function FormularioProducto({
         name="imagen"
         value={datos.imagen}
         onChange={manejarCambio}
+        maxLength={255}
       />
 
       {(errorLocal || error) && (
@@ -169,8 +179,10 @@ export default function FormularioProducto({
       )}
 
       <div className="admin-botones">
-        <button type="submit">
-          {esEdicion ? 'Guardar cambios' : 'Guardar producto'}
+        <button type="submit" disabled={guardando}>
+          {guardando
+            ? 'Guardando...'
+            : esEdicion ? 'Guardar cambios' : 'Guardar producto'}
         </button>
 
         <button
