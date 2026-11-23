@@ -19,6 +19,7 @@ import Carrito from './pages/Carrito.jsx';
 import Checkout from './pages/Checkout.jsx';
 import CompraExitosa from './pages/CompraExitosa.jsx';
 import CompraError from './pages/CompraError.jsx';
+import MisCompras from './pages/MisCompras.jsx';
 
 import Login from './pages/Login.jsx';
 import Registro from './pages/Registro.jsx';
@@ -74,9 +75,14 @@ function App() {
         <Route path="registro" element={<Registro />} />
 
         <Route path="carrito" element={<Carrito />} />
-        <Route path="checkout" element={<Checkout />} />
 
-        <Route path="compra/exitosa" element={<CompraExitosa />} />
+        {/* Comprar y ver mis compras: requiere sesión (cualquier rol) */}
+        <Route element={<RutaProtegida />}>
+          <Route path="checkout" element={<Checkout />} />
+          <Route path="compra/exitosa" element={<CompraExitosa />} />
+          <Route path="mis-compras" element={<MisCompras />} />
+        </Route>
+
         <Route path="compra/error" element={<CompraError />} />
       </Route>
 
