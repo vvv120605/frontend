@@ -7,7 +7,7 @@ on:
 
 jobs:
   tests:
-    name: Instalar, testear y compilar
+    name: Instalar y compilar
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el código
