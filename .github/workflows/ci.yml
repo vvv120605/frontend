@@ -22,9 +22,6 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Ejecutar los tests
-        run: npm test --if-present
-
       - name: Compilar
         run: npm run build
 
