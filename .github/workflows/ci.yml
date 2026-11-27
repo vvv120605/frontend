@@ -1,37 +1,69 @@
-name: CI Frontend
+name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'URL del backend (ej. http://<IP-EC2>:8080). Vacío = variable VITE_API_URL del repo'
+        required: false
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  tests:
-    name: Instalar y compilar
+  build:
+    name: Compilar y empaquetar dist
     runs-on: ubuntu-latest
+
     steps:
-      - name: Descargar el código
+      - name: Obtener código
         uses: actions/checkout@v4
 
-      - name: Instalar Node 20
+      - name: Configurar Node 22 con caché de npm
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
 
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Compilar
+      - name: Resolver URL del backend
+        env:
+          INPUT_API_URL: ${{ inputs.api_url }}
+          REPO_API_URL: ${{ vars.VITE_API_URL }}
+        run: |
+          API_URL="${INPUT_API_URL:-$REPO_API_URL}"
+          if [ -z "$API_URL" ]; then
+            API_URL="http://localhost:8080"
+            echo "::warning::VITE_API_URL no definida; se compila con $API_URL."
+          fi
+          echo "VITE_API_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "Compilando contra: $API_URL"
+
+      - name: Compilar (vite build)
         run: npm run build
 
-  docker:
-    name: Construir imagen Docker
-    runs-on: ubuntu-latest
-    needs: tests
-    steps:
-      - name: Descargar el código
-        uses: actions/checkout@v4
+      - name: Agregar información del build
+        run: |
+          {
+            echo "Commit: ${GITHUB_SHA}"
+            echo "VITE_API_URL: ${VITE_API_URL}"
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > BUILD_INFO.txt
+          ls -lhR dist
 
-      - name: Construir la imagen
-        run: docker build -t sonidovivo-frontend .
+      - name: Publicar artefacto dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsy1104-frontend-dist-${{ github.sha }}
+          path: |
+            dist/
+            BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 14
